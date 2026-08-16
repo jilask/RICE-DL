@@ -19,3 +19,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+This project is an independent GUI front-end for yt-dlp (https://github.com/yt-dlp/yt-dlp),
+distributed separately under the Unlicense. yt-dlp is not bundled with this
+repository's source and is not itself covered by the license above — see
+yt-dlp's own repository for its license terms. Users are responsible for
+ensuring their use of yt-dlp complies with the terms of service of the sites
+they download from.
