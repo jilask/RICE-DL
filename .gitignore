@@ -1,0 +1,23 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Bundled executables and binaries
+yt-dlp.exe
+ffmpeg.exe
+
+# Build artifacts
+dist/
+build/
+*.spec
+
+# User configuration & local settings
+config.json
+
+# Virtual environments
+.venv/
+venv/
+
+# Packaging
+*.egg-info/
