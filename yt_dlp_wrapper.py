@@ -81,26 +81,82 @@ def get_version(ytdlp_path):
         return f"unknown ({exc})"
 
 
-def fetch_info(ytdlp_path, url, timeout=45):
+def fetch_info(ytdlp_path, url, timeout=45, download_playlist=False):
     """
-    Runs `yt-dlp --dump-json --no-playlist <url>` and returns a parsed dict
-    with the fields the UI cares about. Raises RuntimeError with yt-dlp's
-    own stderr on failure so the user sees the *real* reason (geo-block,
+    Runs `yt-dlp --dump-json [--flat-playlist | --no-playlist] <url>` and returns
+    a parsed dict with the fields the UI cares about. Raises RuntimeError with
+    yt-dlp's own stderr on failure so the user sees the *real* reason (geo-block,
     private video, unsupported site, etc).
     """
-    cmd = [ytdlp_path, "--dump-json", "--no-playlist", "--no-warnings", url]
+    cmd = [ytdlp_path, "--dump-json"]
+    if download_playlist:
+        cmd.append("--flat-playlist")
+    else:
+        cmd.append("--no-playlist")
+    cmd.extend(["--no-warnings", url])
+
     proc = subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout,
         startupinfo=_STARTUPINFO, creationflags=_CREATIONFLAGS,
     )
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or "yt-dlp failed to fetch info.")
+        err = proc.stderr.strip() or "yt-dlp failed to fetch info."
+        if not download_playlist and "playlist" in err.lower():
+            err += " (check 'Whole playlist' to fetch playlists)"
+        raise RuntimeError(err)
+
+    lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    if not lines:
+        raise RuntimeError("yt-dlp returned empty output.")
+
     try:
-        data = json.loads(proc.stdout.strip().splitlines()[-1])
-    except (json.JSONDecodeError, IndexError) as exc:
+        objects = [json.loads(line) for line in lines]
+    except json.JSONDecodeError as exc:
         raise RuntimeError(f"Could not parse yt-dlp output: {exc}") from exc
 
+    first = objects[0]
+    if first.get("_type") == "playlist":
+        entries = first.get("entries") or []
+        preview_entries = [
+            {"title": e.get("title", "Unknown title"), "id": e.get("id", "")}
+            for e in entries[:5]
+            if isinstance(e, dict)
+        ]
+        return {
+            "is_playlist": True,
+            "playlist_title": first.get("title") or first.get("playlist_title") or "Unknown playlist",
+            "entry_count": first.get("playlist_count") or len(entries),
+            "entries": preview_entries,
+        }
+
+    if len(objects) > 1 or (
+        download_playlist and (
+            first.get("playlist_title")
+            or first.get("playlist")
+            or first.get("playlist_id")
+            or first.get("_type") in ("url", "url_transparent")
+        )
+    ):
+        preview_entries = [
+            {"title": obj.get("title", "Unknown title"), "id": obj.get("id", "")}
+            for obj in objects[:5]
+        ]
+        playlist_title = (
+            first.get("playlist_title")
+            or first.get("playlist")
+            or "Unknown playlist"
+        )
+        entry_count = first.get("playlist_count") or len(objects)
+        return {
+            "is_playlist": True,
+            "playlist_title": playlist_title,
+            "entry_count": entry_count,
+            "entries": preview_entries,
+        }
+
+    data = first
     return {
+        "is_playlist": False,
         "title": data.get("title", "Unknown title"),
         "uploader": data.get("uploader") or data.get("channel") or "Unknown",
         "duration_string": data.get("duration_string", "?"),

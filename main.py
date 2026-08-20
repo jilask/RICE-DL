@@ -487,9 +487,11 @@ class App(tk.Tk):
         self.status_dot.set_state("busy")
         self.status_label.configure(text="FETCHING")
 
+        download_playlist = self.playlist_var.get()
+
         def work():
             try:
-                info = ytw.fetch_info(self.ytdlp_path, url)
+                info = ytw.fetch_info(self.ytdlp_path, url, download_playlist=download_playlist)
                 self.ui_queue.put(("info_ok", info))
             except Exception as exc:  # noqa: BLE001
                 self.ui_queue.put(("info_err", str(exc)))
@@ -712,8 +714,12 @@ class App(tk.Tk):
     def _on_info_ok(self, info):
         self.status_dot.set_state("idle")
         self.status_label.configure(text="IDLE")
-        text = (f"\u2713 {info['title']}   [{info['uploader']}]   "
-                f"duration {info['duration_string']}   via {info['extractor']}")
+        if info.get("is_playlist"):
+            count = info.get("entry_count", 0)
+            text = f"\u2713 {info.get('playlist_title', 'Playlist')} \u2014 {count} videos"
+        else:
+            text = (f"\u2713 {info['title']}   [{info['uploader']}]   "
+                    f"duration {info['duration_string']}   via {info['extractor']}")
         self.info_label.configure(text=text, style="Ok.TLabel")
 
     def _on_info_err(self, err):
